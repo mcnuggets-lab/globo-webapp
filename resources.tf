@@ -28,6 +28,13 @@ locals {
 # RESOURCES
 ##################################################################################
 
+resource "aws_iam_instance_profile" "main" {
+  name = "${local.name_prefix}-webapp"
+  role = var.role_name
+
+  tags = local.common_tags
+}
+
 resource "aws_instance" "main" {
   count         = length(data.tfe_outputs.networking.nonsensitive_values.public_subnets)
   ami           = nonsensitive(data.aws_ssm_parameter.amzn2_linux.value)
@@ -49,6 +56,9 @@ resource "aws_instance" "main" {
 
   user_data = templatefile("./templates/userdata.sh", {
     playbook_repository = var.playbook_repository
+    secret_id           = var.secret_id
+    host_list_ssm_name  = local.host_list_ssm_name
+    site_name_ssm_name  = local.site_name_ssm_name
   })
 
   # # Provisioner Stuff
