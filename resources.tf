@@ -45,52 +45,58 @@ resource "aws_instance" "main" {
     "Name" = "${local.name_prefix}-webapp-${count.index}"
   })
 
-  # Provisioner Stuff
-  connection {
-    type        = "ssh"
-    user        = "ec2-user"
-    port        = "22"
-    host        = self.public_ip
-    private_key = module.ssh_keys.private_key_openssh
-  }
+  user_data_replace_on_change = true
 
-  provisioner "file" {
-    source      = "./templates/userdata.sh"
-    destination = "/home/ec2-user/userdata.sh"
-  }
+  user_data = templatefile("./templates/userdata.sh", {
+    playbook_repository = var.playbook_repository
+  })
 
-  provisioner "remote-exec" {
-    inline = [
-      "chmod +x /home/ec2-user/userdata.sh",
-      "bash /home/ec2-user/userdata.sh",
-    ]
-    on_failure = continue
-  }
+  # # Provisioner Stuff
+  # connection {
+  #   type        = "ssh"
+  #   user        = "ec2-user"
+  #   port        = "22"
+  #   host        = self.public_ip
+  #   private_key = module.ssh_keys.private_key_openssh
+  # }
 
-}
+  # provisioner "file" {
+  #   source      = "./templates/userdata.sh"
+  #   destination = "/home/ec2-user/userdata.sh"
+  # }
 
-resource "terraform_data" "webapp" {
-
-  triggers_replace = [length(aws_instance.main.*.id), join(",", aws_instance.main.*.id)]
-
-  provisioner "file" {
-    content = templatefile("./templates/application.config.tpl", {
-      hosts     = aws_instance.main.*.private_dns
-      site_name = "${local.name_prefix}-taco-wagon"
-      api_key   = var.api_key
-    })
-    destination = "/home/ec2-user/application.config"
-  }
-
-  connection {
-    type        = "ssh"
-    user        = "ec2-user"
-    port        = "22"
-    host        = aws_instance.main[0].public_ip
-    private_key = module.ssh_keys.private_key_openssh
-  }
+  # provisioner "remote-exec" {
+  #   inline = [
+  #     "chmod +x /home/ec2-user/userdata.sh",
+  #     "bash /home/ec2-user/userdata.sh",
+  #   ]
+  #   on_failure = continue
+  # }
 
 }
+
+# resource "terraform_data" "webapp" {
+
+#   triggers_replace = [length(aws_instance.main.*.id), join(",", aws_instance.main.*.id)]
+
+#   provisioner "file" {
+#     content = templatefile("./templates/application.config.tpl", {
+#       hosts     = aws_instance.main.*.private_dns
+#       site_name = "${local.name_prefix}-taco-wagon"
+#       api_key   = var.api_key
+#     })
+#     destination = "/home/ec2-user/application.config"
+#   }
+
+#   connection {
+#     type        = "ssh"
+#     user        = "ec2-user"
+#     port        = "22"
+#     host        = aws_instance.main[0].public_ip
+#     private_key = module.ssh_keys.private_key_openssh
+#   }
+
+# }
 
 resource "aws_lb" "main" {
   name               = "${local.name_prefix}-webapp"
